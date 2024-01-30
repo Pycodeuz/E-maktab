@@ -1,12 +1,13 @@
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import generics, permissions
+from rest_framework import generics
 from rest_framework import status
+from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt import authentication
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 
+from user.permissions import UserPermission
 from user.serializers import (
     UserModelSerializer
 )
@@ -23,13 +24,21 @@ class UserCreateApiView(generics.CreateAPIView):
     serializer_class = UserModelSerializer
 
 
-class UserRetrieveUpdateApiView(generics.RetrieveUpdateAPIView):
+class UserRetrieveApiView(ListAPIView):
+    permission_classes = [UserPermission]
     serializer_class = UserModelSerializer
-    authentication_classes = [authentication.JWTAuthentication]
-    permission_classes = [permissions.IsAuthenticated]
 
-    def get_object(self):
-        return self.request.user
+    def get_queryset(self):
+        user = self.response.user
+        if user.is_authenticated:
+            return AdminUser.objects.all()
+        else:
+            AdminUser.objects.none()
+
+    def user_list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data)
 
 
 """Custom Api for decode token"""
